@@ -38,4 +38,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('lists', ListController::class);
 });
 
+use App\Http\Controllers\MembershipController;
+
+Route::middleware('auth')->group(function () {
+    Route::resource('lists', ListController::class);
+
+    Route::post('/lists/{list}/invite', [MembershipController::class, 'invite'])->name('lists.invite');
+    Route::delete('/lists/{list}/members/{user}', [MembershipController::class, 'remove'])->name('lists.members.remove');
+    Route::post('/lists/{list}/transfer', [MembershipController::class, 'transfer'])->name('lists.transfer');
+});
 // ===== SRS005 & SRS006 — Tugas + Status (Programmer C) =====
