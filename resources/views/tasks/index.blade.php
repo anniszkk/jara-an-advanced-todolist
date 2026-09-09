@@ -109,6 +109,35 @@
         + Tambah Tugas
     </a>
 
+    <h2>Progress Daftar</h2>
+
+    @foreach ($lists as $list)
+
+        @php
+            $totalTasks = $list->tasks->count();
+            $completedTasks = $list->tasks->where('status', 'selesai')->count();
+
+            $progress = $totalTasks > 0
+                ? round(($completedTasks / $totalTasks) * 100)
+                : 0;
+        @endphp
+
+        <div class="task-card">
+
+            <h3>{{ $list->name }}</h3>
+
+            <p>
+                {{ $completedTasks }} dari {{ $totalTasks }} tugas selesai
+            </p>
+
+            <p>
+                Progress: {{ $progress }}%
+            </p>
+
+        </div>
+
+    @endforeach
+
     @if ($tasks->count() > 0)
 
         @foreach ($tasks as $task)
@@ -125,6 +154,35 @@
                 <div class="info">
                     <strong>Prioritas:</strong>
                     {{ $task->priority }}
+                </div>
+
+                <div class="info">
+                    <strong>Status:</strong>
+
+                    <form action="{{ route('tasks.updateStatus', $task->id) }}"
+                        method="POST"
+                        style="display:inline">
+
+                        @csrf
+                        @method('PATCH')
+
+                        <select name="status" onchange="this.form.submit()">
+                            <option value="belum"
+                                {{ $task->status == 'belum' ? 'selected' : '' }}>
+                                Belum
+                            </option>
+
+                            <option value="dikerjakan"
+                                {{ $task->status == 'dikerjakan' ? 'selected' : '' }}>
+                                Dikerjakan
+                            </option>
+
+                            <option value="selesai"
+                                {{ $task->status == 'selesai' ? 'selected' : '' }}>
+                                Selesai
+                            </option>
+                        </select>
+                    </form>
                 </div>
 
                 <div class="info">

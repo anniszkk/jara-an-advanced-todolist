@@ -15,3 +15,5 @@ Route::get('/', function () {
 
 // ===== SRS005 & SRS006 — Tugas + Status (Programmer C) =====
 Route::resource('tasks', TaskController::class);
+Route::patch('tasks/{id}/status', [TaskController::class, 'updateStatus'])
+    ->name('tasks.updateStatus');
