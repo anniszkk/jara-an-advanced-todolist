@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TaskController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -13,3 +14,4 @@ Route::get('/', function () {
 
 
 // ===== SRS005 & SRS006 — Tugas + Status (Programmer C) =====
+Route::resource('tasks', TaskController::class);
