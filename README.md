@@ -372,7 +372,7 @@ Restart server (`Ctrl+C` lalu `php artisan serve` lagi), atau jalankan `php arti
 
 | Nama | Peran | SRS |
 |---|---|---|
-| — | PM (Pertemuan 2) | Setup project, migration, model, merge |
+| — | Annis Fakhiroh Akbar | Setup project, migration, model, merge |
 | — | Varissa Nabila Kifli | SRS001, SRS002 |
 | — | Shafa Aqilla Zahira | SRS003, SRS004 |
 | — | Binar Ridha Wiritanaya | SRS005, SRS006 |
