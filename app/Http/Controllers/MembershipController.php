@@ -43,7 +43,7 @@ class MembershipController extends Controller
         return back()->with('success', 'Anggota berhasil dikeluarkan.');
     }
 
-    // Alihkan kepemilikan daftar ke anggota lain
+    // ===== SRS004 — Alihkan kepemilikan daftar ke anggota lain =====
     public function transfer(Request $request, TaskList $list)
     {
         $this->authorizeOwner($list);
@@ -52,7 +52,7 @@ class MembershipController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $newOwnerId = $request->user_id;
+        $newOwnerId = (int) $request->user_id;
 
         // Pastikan target adalah anggota yang sah
         if (!$list->members()->where('user_id', $newOwnerId)->exists()) {
@@ -61,13 +61,13 @@ class MembershipController extends Controller
 
         $oldOwnerId = $list->owner_id;
 
-        // Ganti pemilik
+        // Langkah 1: Ganti pemilik daftar
         $list->update(['owner_id' => $newOwnerId]);
 
-        // Owner baru dihapus dari tabel member (karena sekarang jadi owner)
+        // Langkah 2: Pemilik baru dihapus dari tabel member (sudah jadi owner)
         $list->members()->detach($newOwnerId);
 
-        // Owner lama otomatis jadi anggota biasa
+        // Langkah 3: Pemilik lama otomatis jadi anggota biasa
         $list->members()->attach($oldOwnerId);
 
         return redirect()->route('lists.index')->with('success', 'Kepemilikan berhasil dialihkan.');
