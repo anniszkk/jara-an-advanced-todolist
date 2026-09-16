@@ -49,3 +49,15 @@ Route::resource('tasks', TaskController::class);
 
 Route::patch('tasks/{id}/status', [TaskController::class, 'updateStatus'])
     ->name('tasks.updateStatus');
+
+// ===== SRS007 — Pembuatan Daftar + Penetapan Pemilik (Programmer A) =====
+
+// ===== SRS008 — Penghapusan Daftar Milik Pengguna (Programmer A) =====
+
+// ===== SRS009 — Penghapusan Tugas + Keanggotaan (Programmer B) =====
+
+// ===== SRS010 — Atomic Transaction (Programmer B) =====
+
+// ===== SRS011 — Authorization + Permission (Programmer C) =====
+
+// ===== SRS012 — Input Validation + SQL Injection Prevention (Programmer C) =====
