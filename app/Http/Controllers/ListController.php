@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TaskList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ListController extends Controller
 {
@@ -41,7 +42,7 @@ class ListController extends Controller
         return view('lists.create');
     }
 
-    // ===== SRS003 — Simpan daftar baru; user yang login otomatis jadi pemilik =====
+    // ===== SRS003 + SRS010 — Simpan daftar baru secara atomic =====
     public function store(Request $request)
     {
         $request->validate([
@@ -49,11 +50,15 @@ class ListController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        TaskList::create([
-            'name'        => $request->name,
-            'description' => $request->description,
-            'owner_id'    => Auth::id(),
-        ]);
+        // DB::transaction() memastikan pembuatan daftar berjalan secara atomic (ACID).
+        // Jika ada exception, seluruh perubahan di-rollback otomatis.
+        DB::transaction(function () use ($request) {
+            TaskList::create([
+                'name'        => $request->name,
+                'description' => $request->description,
+                'owner_id'    => Auth::id(),
+            ]);
+        });
 
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil dibuat!');
     }
@@ -91,20 +96,24 @@ class ListController extends Controller
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil diperbarui!');
     }
 
-    // ===== SRS009 — Hapus daftar beserta seluruh tugas & keanggotaannya =====
+    // ===== SRS009 + SRS010 — Hapus daftar beserta tugas & keanggotaan secara atomic =====
     public function destroy(TaskList $list)
     {
         $this->authorizeOwner($list);
 
-        // Langkah 1 (SRS009): Hapus semua tugas dalam daftar ini.
-        // Eloquent ORM menggunakan prepared statement — tidak ada raw SQL / string concat.
-        $list->tasks()->delete();
+        // Semua langkah penghapusan dibungkus dalam satu transaksi (ACID — Atomicity).
+        // Jika salah satu langkah gagal, seluruh perubahan akan di-rollback otomatis.
+        DB::transaction(function () use ($list) {
+            // Langkah 1 (SRS009): Hapus semua tugas dalam daftar ini.
+            // Eloquent ORM menggunakan prepared statement — tidak ada raw SQL / string concat.
+            $list->tasks()->delete();
 
-        // Langkah 2 (SRS009): Lepaskan semua keanggotaan dari pivot table list_user.
-        $list->members()->detach();
+            // Langkah 2 (SRS009): Lepaskan semua keanggotaan dari pivot table list_user.
+            $list->members()->detach();
 
-        // Langkah 3: Hapus daftar itu sendiri.
-        $list->delete();
+            // Langkah 3: Hapus daftar itu sendiri.
+            $list->delete();
+        });
 
         return redirect()->route('lists.index')
             ->with('success', 'Daftar beserta seluruh tugas dan keanggotaan berhasil dihapus!');
