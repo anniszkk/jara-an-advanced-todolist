@@ -75,11 +75,15 @@ class ListController extends Controller
     public function destroy(TaskList $list)
     {
         $this->authorizeOwner($list);
-        $list->delete();
+
+        DB::transaction(function () use ($list) {
+            $list->tasks()->delete();
+            $list->members()->detach();
+            $list->delete();
+        });
 
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil dihapus!');
     }
-
     // Helper: cek apakah user yang login adalah pemilik daftar ini
     private function authorizeOwner(TaskList $list)
     {
