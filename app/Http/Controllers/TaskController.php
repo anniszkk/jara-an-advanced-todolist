@@ -15,7 +15,9 @@ class TaskController extends Controller
     {
         $tasks = Task::with('list')->get();
 
-        return view('tasks.index', compact('tasks'));
+        $lists = TaskList::with('tasks')->get();
+
+        return view('tasks.index', compact('tasks', 'lists'));
     }
 
     /**
@@ -101,4 +103,19 @@ class TaskController extends Controller
         return redirect()->route('tasks.index')
             ->with('success', 'Tugas berhasil dihapus.');
     }
+
+    public function updateStatus(Request $request, string $id)
+    {
+        $task = Task::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:belum,dikerjakan,selesai',
+        ]);
+
+        $task->update($validated);
+
+        return redirect()->route('tasks.index')
+            ->with('success', 'Status tugas berhasil diperbarui.');
+    }
+
 }
