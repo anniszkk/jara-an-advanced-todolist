@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\TaskList;
 use Illuminate\Http\Request;
 
+
 class TaskController extends Controller
 {
     /**
@@ -40,7 +41,8 @@ class TaskController extends Controller
      * Menyimpan tugas baru.
      */
     public function store(Request $request)
-    {
+    {   //Validasi seluruh input tugas sebelum diproses ke database.
+        // Input dicek berdasarkan tipe, panjang, nilai yang diperbolehkan,dan keberadaan data yang direferensikan.
         $validated = $request->validate([
             'list_id' => 'required|exists:lists,id',
             'title' => 'required|string|max:255',
@@ -49,6 +51,7 @@ class TaskController extends Controller
             'due_date' => 'nullable|date',
         ]);
 
+        // Menggunakan Eloquent dengan data yang telah divalidasi,sehingga input tidak digabungkan langsung ke query SQL.
         Task::create($validated);
 
         return redirect()->route('tasks.index')
@@ -88,6 +91,7 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
         $this->authorizeTask($task);
+        // Memvalidasi input perubahan tugas sebelum diperbarui di database.
         $validated = $request->validate([
             'list_id' => 'required|exists:lists,id',
             'title' => 'required|string|max:255',
