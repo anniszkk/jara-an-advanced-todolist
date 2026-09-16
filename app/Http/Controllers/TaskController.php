@@ -13,8 +13,14 @@ class TaskController extends Controller
      */
     public function index()
     {
-        $tasks = Task::with('list')->get();
-
+        $tasks = Task::with('list')
+        ->whereHas('list', function ($query) {
+            $query->where('owner_id', auth()->id())
+                ->orWhereHas('members', function ($memberQuery) {
+                    $memberQuery->where('users.id', auth()->id());
+                });
+        })
+        ->get();
         $lists = TaskList::with('tasks')->get();
 
         return view('tasks.index', compact('tasks', 'lists'));
@@ -56,6 +62,8 @@ class TaskController extends Controller
     {
         $task = Task::with('list')->findOrFail($id);
 
+        $this->authorizeTask($task);
+
         return view('tasks.show', compact('task'));
     }
 
@@ -64,8 +72,11 @@ class TaskController extends Controller
      */
     public function edit(string $id)
     {
-        $task = Task::findOrFail($id);
-        $lists = TaskList::all();
+        $task = Task::with('list')->findOrFail($id);
+
+        $this->authorizeTask($task);
+
+        $lists = TaskList::where('owner_id', auth()->id())->get();
 
         return view('tasks.edit', compact('task', 'lists'));
     }
@@ -76,7 +87,7 @@ class TaskController extends Controller
     public function update(Request $request, string $id)
     {
         $task = Task::findOrFail($id);
-
+        $this->authorizeTask($task);
         $validated = $request->validate([
             'list_id' => 'required|exists:lists,id',
             'title' => 'required|string|max:255',
@@ -98,6 +109,8 @@ class TaskController extends Controller
     {
         $task = Task::findOrFail($id);
 
+        $this->authorizeTask($task);
+
         $task->delete();
 
         return redirect()->route('tasks.index')
@@ -107,7 +120,7 @@ class TaskController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $task = Task::findOrFail($id);
-
+        $this->authorizeTask($task);
         $validated = $request->validate([
             'status' => 'required|in:belum,dikerjakan,selesai',
         ]);
@@ -116,6 +129,18 @@ class TaskController extends Controller
 
         return redirect()->route('tasks.index')
             ->with('success', 'Status tugas berhasil diperbarui.');
+    }
+
+    private function authorizeTask(Task $task)
+    {
+        $user = auth()->user();
+
+        $hasAccess = $task->list->owner_id === $user->id
+            || $task->list->members()->where('user_id', $user->id)->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'Anda tidak memiliki akses ke tugas ini.');
+        }
     }
 
 }
