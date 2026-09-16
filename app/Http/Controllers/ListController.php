@@ -8,11 +8,31 @@ use Illuminate\Support\Facades\Auth;
 
 class ListController extends Controller
 {
-    // Nampilin semua daftar milik user yang login
+    // ===== SRS003 — Tampilkan daftar milik user + daftar yang diikuti =====
     public function index()
     {
-        $lists = TaskList::where('owner_id', Auth::id())->get();
-        return view('lists.index', compact('lists'));
+        // Eager load withCount untuk progress tugas (selesai / total)
+        $ownedLists = TaskList::where('owner_id', Auth::id())
+            ->withCount([
+                'tasks',
+                'tasks as done_count' => function ($q) {
+                    $q->where('status', 'selesai');
+                },
+            ])
+            ->get();
+
+        // Daftar yang user ikuti sebagai anggota (via pivot list_user)
+        $memberLists = Auth::user()
+            ->lists()
+            ->withCount([
+                'tasks',
+                'tasks as done_count' => function ($q) {
+                    $q->where('status', 'selesai');
+                },
+            ])
+            ->get();
+
+        return view('lists.index', compact('ownedLists', 'memberLists'));
     }
 
     // Form bikin daftar baru
@@ -21,44 +41,48 @@ class ListController extends Controller
         return view('lists.create');
     }
 
-    // Simpan daftar baru
+    // ===== SRS003 — Simpan daftar baru; user yang login otomatis jadi pemilik =====
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
 
         TaskList::create([
-            'name' => $request->name,
+            'name'        => $request->name,
             'description' => $request->description,
-            'owner_id' => Auth::id(),
+            'owner_id'    => Auth::id(),
         ]);
 
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil dibuat!');
     }
 
-    // Lihat detail 1 daftar
+    // ===== SRS003 — Detail daftar; bisa diakses owner ATAU anggota =====
     public function show(TaskList $list)
     {
-        $this->authorizeOwner($list);
+        $this->authorizeMember($list);
+
+        // Eager load relasi agar tidak terjadi N+1 query
+        $list->load(['owner', 'members', 'tasks']);
+
         return view('lists.show', compact('list'));
     }
 
-    // Form edit daftar
+    // Form edit daftar (hanya owner)
     public function edit(TaskList $list)
     {
         $this->authorizeOwner($list);
         return view('lists.edit', compact('list'));
     }
 
-    // Simpan hasil edit
+    // Simpan hasil edit (hanya owner)
     public function update(Request $request, TaskList $list)
     {
         $this->authorizeOwner($list);
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
 
@@ -67,19 +91,47 @@ class ListController extends Controller
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil diperbarui!');
     }
 
-    // Hapus daftar
+    // ===== SRS009 — Hapus daftar beserta seluruh tugas & keanggotaannya =====
     public function destroy(TaskList $list)
     {
         $this->authorizeOwner($list);
+
+        // Langkah 1 (SRS009): Hapus semua tugas dalam daftar ini.
+        // Eloquent ORM menggunakan prepared statement — tidak ada raw SQL / string concat.
+        $list->tasks()->delete();
+
+        // Langkah 2 (SRS009): Lepaskan semua keanggotaan dari pivot table list_user.
+        $list->members()->detach();
+
+        // Langkah 3: Hapus daftar itu sendiri.
         $list->delete();
 
-        return redirect()->route('lists.index')->with('success', 'Daftar berhasil dihapus!');
+        return redirect()->route('lists.index')
+            ->with('success', 'Daftar beserta seluruh tugas dan keanggotaan berhasil dihapus!');
     }
 
-    // Helper: cek apakah user yang login adalah pemilik daftar ini
+    // ===== Helper: hanya owner yang boleh mengelola daftar =====
     private function authorizeOwner(TaskList $list)
     {
         if ($list->owner_id !== Auth::id()) {
+            abort(403, 'Anda tidak memiliki akses ke daftar ini.');
+        }
+    }
+
+    // ===== SRS003 Helper: owner ATAU anggota boleh melihat detail daftar =====
+    private function authorizeMember(TaskList $list)
+    {
+        $userId = Auth::id();
+
+        if ($list->owner_id === $userId) {
+            return; // owner pasti boleh
+        }
+
+        // Eloquent query builder menggunakan prepared statement secara otomatis.
+        // Parameter $userId di-bind dengan aman — tidak ada risiko SQL injection.
+        $isMember = $list->members()->where('user_id', $userId)->exists();
+
+        if (!$isMember) {
             abort(403, 'Anda tidak memiliki akses ke daftar ini.');
         }
     }
