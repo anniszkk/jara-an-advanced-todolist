@@ -4,7 +4,7 @@ Aplikasi web untuk mengelola tugas pribadi dan tim. Pengguna dapat membuat dan m
 
 Pemilik daftar dapat mengundang pengguna lain ke dalam daftarnya agar dikerjakan bersama dan memantau progres penyelesaian tugas di daftar tersebut. Admin bertanggung jawab menambah dan menghapus akun pengguna dalam sistem.
 
-Dibuat untuk Praktikum PPK — Pertemuan 2.
+Dibuat untuk Praktikum PPK — Pertemuan 2 & 3.
 
 ---
 
@@ -22,7 +22,8 @@ Dibuat untuk Praktikum PPK — Pertemuan 2.
 - [Alur Kerja Git](#alur-kerja-git)
 - [Aturan Kerja Tim](#aturan-kerja-tim)
 - [Troubleshooting](#troubleshooting)
-- [Tim](#tim)
+- [Peran Praktikum 2](#peran-praktikum-2)
+- [Peran Praktikum 3](#peran-praktikum-3)
 
 ---
 
@@ -36,6 +37,10 @@ Dibuat untuk Praktikum PPK — Pertemuan 2.
 - Mengalihkan kepemilikan daftar ke anggota lain
 - Ringkasan progres penyelesaian tugas per daftar
 - Dashboard admin untuk menambah dan menghapus akun pengguna
+- Pembuatan daftar dengan penetapan pemilik otomatis
+- Penghapusan daftar beserta seluruh tugas dan keanggotaan di dalamnya secara atomic (rollback penuh jika salah satu langkah gagal)
+- Penolakan permintaan dari user yang tidak berwenang/tidak memiliki izin
+- Validasi input pengguna secara menyeluruh, seluruh query diproses menggunakan query terparameterisasi/prepared statement untuk mencegah SQL Injection
 
 ---
 
@@ -199,7 +204,9 @@ Kombinasi `list_id` + `user_id` bersifat unique, sehingga satu pengguna tidak bi
 
 ### Perilaku cascade
 
-Menghapus akun pengguna otomatis menghapus daftar dan tugas miliknya, sesuai kebutuhan SRS002. Ini ditangani di level database lewat `cascadeOnDelete()`, jadi tidak perlu logika tambahan di controller.
+Menghapus akun pengguna otomatis menghapus daftar dan tugas miliknya, sesuai kebutuhan SRS002. Ini ditangani di level database lewat `cascadeOnDelete()`.
+
+Untuk penghapusan daftar (SRS008/SRS009), cascade di level database dipakai sebagai jaring pengaman, tetapi proses penghapusan **tetap wajib dibungkus `DB::transaction()`** di controller supaya seluruh langkah (hapus tugas → hapus keanggotaan → hapus daftar) benar-benar atomic dan bisa di-rollback kalau salah satu langkah gagal — bukan hanya mengandalkan constraint database.
 
 ---
 
@@ -244,6 +251,8 @@ Method relasi yang tersedia:
 
 ## Daftar SRS & Pembagian Tugas
 
+### Praktikum 2
+
 | Kode | Deskripsi | Acceptance Criteria | PIC |
 |---|---|---|---|
 | SRS001 | Autentikasi user | Registrasi, login, logout jalan; password ter-hash; halaman internal diproteksi middleware `auth` | A |
@@ -254,6 +263,19 @@ Method relasi yang tersedia:
 | SRS006 | Status tugas & progress daftar | Status bisa dipindah belum → dikerjakan → selesai; tiap daftar menampilkan jumlah selesai / total dan persentase yang ikut berubah | C |
 
 Urutan merge mengikuti dependensi: SRS001 → SRS003 → SRS005 → SRS002 → SRS004 → SRS006.
+
+### Praktikum 3
+
+User story tambahan: *"Pengguna dapat membuat daftar tugas baru dengan otomatis menjadi pemiliknya, serta menghapus daftar yang dimilikinya beserta seluruh tugas dan keanggotaan di dalamnya. Tiap proses ini harus berjalan secara atomic sehingga jika salah satu langkah gagal, maka seluruh perubahan dibatalkan. Permintaan dari user yang tidak berwenang/tidak memiliki izin harus ditolak. Seluruh input pengguna wajib divalidasi serta diproses menggunakan query terparameterisasi/prepared statement untuk mencegah SQL Injection."*
+
+| Kode | Deskripsi | Acceptance Criteria | PIC |
+|---|---|---|---|
+| SRS007 | Pembuatan daftar + penetapan pemilik | Daftar baru otomatis menetapkan user yang membuat sebagai `owner_id` | Varissa |
+| SRS008 | Penghapusan daftar milik pengguna | Owner bisa menghapus daftar miliknya; seluruh tugas & keanggotaan di dalamnya ikut terhapus | Varissa |
+| SRS009 | Penghapusan tugas + keanggotaan | Penghapusan tugas dan keanggotaan berjalan konsisten, tidak menyisakan data yatim (orphan) | Annis |
+| SRS010 | Atomic transaction | Proses hapus daftar/tugas/keanggotaan dibungkus `DB::transaction()`; jika satu langkah gagal, seluruh perubahan di-rollback | Annis |
+| SRS011 | Authorization + permission | Setiap request ke resource (list/task/membership) divalidasi kepemilikan/keanggotaan; user tanpa hak akses ditolak (403) | Binar |
+| SRS012 | Input validation + SQL Injection prevention | Seluruh input divalidasi lewat `$request->validate()`; seluruh query lewat Eloquent/prepared statement, tidak ada raw query rawan injeksi | Binar |
 
 ---
 
@@ -314,13 +336,20 @@ Merge satu branch dulu sampai bersih, baru lanjut branch berikutnya.
 
 ---
 
-## Tim
+## Peran Praktikum 2
 
 | Nama | Peran | SRS |
 |---|---|---|
-| — | Annis Fakhiroh Akbar | Setup project, migration, model, merge |
-| — | Varissa Nabila Kifli | SRS001, SRS002 |
-| — | Shafa Aqilla Zahira | SRS003, SRS004 |
-| — | Binar Ridha Wiritanaya | SRS005, SRS006 |
+| Annis Fakhiroh Akbar | Setup project, migration, model, merge | — |
+| Varissa Nabila Kifli | Programmer | SRS001, SRS002 |
+| Shafa Aqilla Zahira | Programmer | SRS003, SRS004 |
+| Binar Ridha Wiritanaya | Programmer | SRS005, SRS006 |
 
-Peran PM bergilir tiap pertemuan.
+## Peran Praktikum 3
+
+| Nama | Peran | SRS |
+|---|---|---|
+| Shafa Aqilla Zahira | PM (setup, koordinasi, merge) | — |
+| Varissa Nabila Kifli | Programmer | SRS007, SRS008 |
+| Annis Fakhiroh Akbar | Programmer | SRS009, SRS010 |
+| Binar Ridha Wiritanaya | Programmer | SRS011, SRS012 |
