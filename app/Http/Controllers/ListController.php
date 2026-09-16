@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TaskList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ListController extends Controller
 {
@@ -29,15 +30,18 @@ class ListController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        TaskList::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'owner_id' => Auth::id(),
-        ]);
+        DB::transaction(function () use ($request) {
+            $list = TaskList::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'owner_id' => Auth::id(),
+            ]);
+
+            $list->members()->attach(Auth::id());
+        });
 
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil dibuat!');
     }
-
     // Lihat detail 1 daftar
     public function show(TaskList $list)
     {

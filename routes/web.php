@@ -50,8 +50,11 @@ Route::resource('tasks', TaskController::class);
 Route::patch('tasks/{id}/status', [TaskController::class, 'updateStatus'])
     ->name('tasks.updateStatus');
 
-// ===== SRS007 — Pembuatan Daftar + Penetapan Pemilik (Programmer A) =====
 
+// ===== SRS007 — Pembuatan Daftar + Penetapan Pemilik (Programmer A) =====
+Route::middleware('auth')->group(function () {
+    Route::post('/lists', [ListController::class, 'store'])->name('lists.store');
+});
 // ===== SRS008 — Penghapusan Daftar Milik Pengguna (Programmer A) =====
 
 // ===== SRS009 — Penghapusan Tugas + Keanggotaan (Programmer B) =====
