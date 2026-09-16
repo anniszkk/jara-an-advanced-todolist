@@ -42,7 +42,7 @@ class ListController extends Controller
         return view('lists.create');
     }
 
-    // ===== SRS003 — Simpan daftar baru; user yang login otomatis jadi pemilik =====
+    // ===== SRS003 + SRS010 — Simpan daftar baru secara atomic =====
     public function store(Request $request)
     {
         $request->validate([
@@ -58,6 +58,7 @@ class ListController extends Controller
             ]);
 
             $list->members()->attach(Auth::id());
+
         });
 
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil dibuat!');
@@ -96,7 +97,7 @@ class ListController extends Controller
         return redirect()->route('lists.index')->with('success', 'Daftar berhasil diperbarui!');
     }
 
-    // ===== SRS009 — Hapus daftar beserta seluruh tugas & keanggotaannya =====
+    // ===== SRS009 + SRS010 — Hapus daftar beserta tugas & keanggotaan secara atomic =====
     public function destroy(TaskList $list)
     {
         $this->authorizeOwner($list);

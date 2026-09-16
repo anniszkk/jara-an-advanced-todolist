@@ -6,6 +6,7 @@ use App\Models\TaskList;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MembershipController extends Controller
 {
@@ -43,7 +44,7 @@ class MembershipController extends Controller
         return back()->with('success', 'Anggota berhasil dikeluarkan.');
     }
 
-    // ===== SRS004 — Alihkan kepemilikan daftar ke anggota lain =====
+    // ===== SRS004 + SRS010 — Alihkan kepemilikan daftar secara atomic =====
     public function transfer(Request $request, TaskList $list)
     {
         $this->authorizeOwner($list);
@@ -61,14 +62,18 @@ class MembershipController extends Controller
 
         $oldOwnerId = $list->owner_id;
 
-        // Langkah 1: Ganti pemilik daftar
-        $list->update(['owner_id' => $newOwnerId]);
+        // Ketiga operasi dibungkus dalam transaksi (ACID — Atomicity).
+        // Jika salah satu gagal (misal constraint violation), semua di-rollback.
+        DB::transaction(function () use ($list, $newOwnerId, $oldOwnerId) {
+            // Langkah 1: Ganti pemilik daftar
+            $list->update(['owner_id' => $newOwnerId]);
 
-        // Langkah 2: Pemilik baru dihapus dari tabel member (sudah jadi owner)
-        $list->members()->detach($newOwnerId);
+            // Langkah 2: Pemilik baru dihapus dari tabel member (sudah jadi owner)
+            $list->members()->detach($newOwnerId);
 
-        // Langkah 3: Pemilik lama otomatis jadi anggota biasa
-        $list->members()->attach($oldOwnerId);
+            // Langkah 3: Pemilik lama otomatis jadi anggota biasa
+            $list->members()->attach($oldOwnerId);
+        });
 
         return redirect()->route('lists.index')->with('success', 'Kepemilikan berhasil dialihkan.');
     }
